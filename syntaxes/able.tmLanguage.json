@@ -1,0 +1,38 @@
+{
+    "scopeName": "source.able",
+    "name": "Able",
+    "patterns": [
+        {
+            "match": "\\b(set|to|pr|GET|POST)\\b",
+            "name": "keyword.control.able"
+        },
+        {
+            "match": "\".*?\"",
+            "name": "string.quoted.double.able"
+        },
+        {
+            "match": "\\b\\d+\\b",
+            "name": "constant.numeric.able"
+        },
+        {
+            "name": "comment.line.number-sign.able",
+            "match": "#.*$",
+            "captures": {
+                "0": {
+                    "name": "comment.line.able"
+                }
+            }
+        },
+        {
+            "name": "comment.block.able",
+            "begin": "##",
+            "end": "##",
+            "patterns": [
+                {
+                    "match": ".",
+                    "name": "comment.block.able"
+                }
+            ]
+        }
+    ]
+}
