@@ -1,14 +1,9 @@
-import { createConnection, TextDocuments, ProposedFeatures, TextDocumentSyncKind, CompletionItem, CompletionItemKind } from 'vscode-languageserver/node';
+import { createConnection, TextDocuments, ProposedFeatures, TextDocumentSyncKind, CompletionItem, CompletionItemKind, DidChangeConfigurationNotification } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-
-type SymbolSet = {
-    functions: Set<string>;
-    classes: Set<string>;
-    variables: Set<string>;
-};
+import { SymbolSet, emptySymbols, parseSymbols, mergeSymbols, getMemberCandidates } from './symbols';
 
 type ModuleEntry = {
     moduleName: string;
@@ -126,150 +121,98 @@ const documents = new TextDocuments(TextDocument);
 let workspaceRoot: string | null = null;
 const moduleIndex = new Map<string, ModuleEntry>();
 const moduleByFile = new Map<string, string>();
+let hasConfigurationCapability = false;
+let stdlibPaths: string[] = [];
+let useEnvAblePath = true;
+let searchRoots: string[] = [];
 
-function emptySymbols(): SymbolSet {
-    return {
-        functions: new Set<string>(),
-        classes: new Set<string>(),
-        variables: new Set<string>()
-    };
+
+function normalizePath(input: string): string {
+    if (input.startsWith('~')) {
+        const home = process.env.HOME || process.env.USERPROFILE || '';
+        return path.resolve(home, input.slice(1));
+    }
+    if (!path.isAbsolute(input) && workspaceRoot) {
+        return path.resolve(workspaceRoot, input);
+    }
+    return path.resolve(input);
 }
 
-function getIndentLevel(line: string): number {
-    let width = 0;
-    for (const ch of line) {
-        if (ch === ' ') {
-            width += 1;
-            continue;
-        }
-        if (ch === '\t') {
-            width += 4;
-            continue;
-        }
-        break;
+function resolveEnvAblePaths(): string[] {
+    if (!useEnvAblePath) {
+        return [];
     }
-    return Math.floor((width + 2) / 4);
+    const envPath = process.env.ABLEPATH;
+    if (!envPath) {
+        return [];
+    }
+    return envPath.split(path.delimiter).filter(Boolean);
 }
 
-function stripLineComment(line: string, inBlockComment: boolean): { text: string; inBlockComment: boolean } {
-    let output = '';
-    let inString = false;
-    let escaped = false;
-    let i = 0;
-
-    while (i < line.length) {
-        if (!inString && !escaped && line.startsWith('##', i)) {
-            inBlockComment = !inBlockComment;
-            i += 2;
-            continue;
+function updateSearchRoots(): void {
+    const roots = new Set<string>();
+    if (workspaceRoot) {
+        roots.add(workspaceRoot);
+        const libRoot = path.join(workspaceRoot, 'lib');
+        if (fs.existsSync(libRoot)) {
+            roots.add(libRoot);
         }
-
-        if (inBlockComment) {
-            i += 1;
-            continue;
-        }
-
-        const ch = line[i];
-        if (!inString && ch === '#') {
-            break;
-        }
-
-        if (ch === '\\' && !escaped) {
-            escaped = true;
-            output += ch;
-            i += 1;
-            continue;
-        }
-
-        if (ch === '"' && !escaped) {
-            inString = !inString;
-        }
-
-        escaped = false;
-        output += ch;
-        i += 1;
     }
-
-    return { text: output, inBlockComment };
+    for (const raw of stdlibPaths) {
+        const resolved = normalizePath(raw);
+        if (fs.existsSync(resolved)) {
+            roots.add(resolved);
+        }
+    }
+    for (const raw of resolveEnvAblePaths()) {
+        const resolved = normalizePath(raw);
+        if (fs.existsSync(resolved)) {
+            roots.add(resolved);
+        }
+    }
+    searchRoots = Array.from(roots);
 }
 
-function parseSymbols(text: string): SymbolSet {
-    const symbols = emptySymbols();
-    const lines = text.split(/\r?\n/);
-    const classStack: Array<{ name: string; indent: number }> = [];
-    let inBlockComment = false;
-
-    for (const line of lines) {
-        const stripped = stripLineComment(line, inBlockComment);
-        inBlockComment = stripped.inBlockComment;
-        const content = stripped.text;
-
-        if (content.trim() === '') {
-            continue;
-        }
-
-        const indent = getIndentLevel(content);
-        while (classStack.length > 0 && indent <= classStack[classStack.length - 1].indent) {
-            classStack.pop();
-        }
-
-        const classMatch = content.match(/^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)/);
-        if (classMatch) {
-            const name = classMatch[1];
-            symbols.classes.add(name);
-            classStack.push({ name, indent });
-            continue;
-        }
-
-        const funMatch = content.match(/^\s*(?:async\s+)?fun\s+([A-Za-z_][A-Za-z0-9_]*)/);
-        if (funMatch) {
-            const name = funMatch[1];
-            if (classStack.length > 0) {
-                // TODO: method completions can be added later using classStack.
-            } else {
-                symbols.functions.add(name);
-            }
-            continue;
-        }
-
-        const varMatch = content.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/);
-        if (varMatch && indent === 0) {
-            symbols.variables.add(varMatch[1]);
-        }
+async function loadConfig(): Promise<void> {
+    if (hasConfigurationCapability) {
+        const config = await connection.workspace.getConfiguration('able');
+        stdlibPaths = Array.isArray(config?.stdlibPaths) ? config.stdlibPaths : [];
+        useEnvAblePath = config?.useEnvAblePath !== false;
+    } else {
+        stdlibPaths = [];
+        useEnvAblePath = true;
     }
-
-    return symbols;
+    updateSearchRoots();
 }
 
 function moduleNameForFile(filePath: string): string | null {
-    if (!workspaceRoot) {
-        return null;
+    for (const root of searchRoots) {
+        const rel = path.relative(root, filePath);
+        if (!rel || rel.startsWith('..')) {
+            continue;
+        }
+
+        const normalized = rel.replace(/\\/g, '/');
+        if (!normalized.endsWith('.abl')) {
+            continue;
+        }
+
+        const parts = normalized.split('/');
+        const last = parts[parts.length - 1];
+
+        if (last === '__init__.abl') {
+            parts.pop();
+        } else {
+            parts[parts.length - 1] = last.replace(/\.abl$/, '');
+        }
+
+        if (parts.length === 0) {
+            return null;
+        }
+
+        return parts.join('.');
     }
-
-    const rel = path.relative(workspaceRoot, filePath);
-    if (!rel || rel.startsWith('..')) {
-        return null;
-    }
-
-    const normalized = rel.replace(/\\/g, '/');
-    if (!normalized.endsWith('.abl')) {
-        return null;
-    }
-
-    const parts = normalized.split('/');
-    const last = parts[parts.length - 1];
-
-    if (last === '__init__.abl') {
-        parts.pop();
-    } else {
-        parts[parts.length - 1] = last.replace(/\.abl$/, '');
-    }
-
-    if (parts.length === 0) {
-        return null;
-    }
-
-    return parts.join('.');
+    return null;
 }
 
 async function collectAbleFiles(dir: string): Promise<string[]> {
@@ -300,16 +243,18 @@ async function scanWorkspace(): Promise<void> {
     moduleIndex.clear();
     moduleByFile.clear();
 
-    if (!workspaceRoot) {
+    if (!workspaceRoot && searchRoots.length === 0) {
         return;
     }
 
-    let files: string[] = [];
-    try {
-        files = await collectAbleFiles(workspaceRoot);
-    } catch (err) {
-        connection.console.warn(`Failed to scan workspace: ${String(err)}`);
-        return;
+    const files: string[] = [];
+    for (const root of searchRoots) {
+        try {
+            const entries = await collectAbleFiles(root);
+            files.push(...entries);
+        } catch (err) {
+            connection.console.warn(`Failed to scan ${root}: ${String(err)}`);
+        }
     }
 
     await Promise.all(
@@ -360,17 +305,33 @@ function uriToPath(uri: string): string | null {
 function gatherWorkspaceSymbols(): SymbolSet {
     const combined = emptySymbols();
     for (const entry of moduleIndex.values()) {
-        for (const fn of entry.symbols.functions) {
-            combined.functions.add(fn);
-        }
-        for (const cls of entry.symbols.classes) {
-            combined.classes.add(cls);
-        }
-        for (const variable of entry.symbols.variables) {
-            combined.variables.add(variable);
-        }
+        mergeSymbols(combined, entry.symbols);
     }
     return combined;
+}
+
+function getModuleEntryForDoc(doc: TextDocument): ModuleEntry | undefined {
+    const filePath = uriToPath(doc.uri);
+    if (!filePath) {
+        return undefined;
+    }
+    const moduleName = moduleNameForFile(filePath);
+    if (!moduleName) {
+        return undefined;
+    }
+    return moduleIndex.get(moduleName);
+}
+
+function getMemberCompletions(target: string, entry?: ModuleEntry): CompletionItem[] {
+    if (!entry) {
+        return [];
+    }
+    const completions: CompletionItem[] = [];
+    const candidates = getMemberCandidates(entry.symbols, target);
+    completions.push(...toCompletionItems(candidates.methods, CompletionItemKind.Method));
+    completions.push(...toCompletionItems(candidates.properties, CompletionItemKind.Property));
+
+    return completions;
 }
 
 function toCompletionItems(items: Iterable<string>, kind: CompletionItemKind): CompletionItem[] {
@@ -422,6 +383,7 @@ function getFromImportCompletions(moduleName: string, prefix: string): Completio
 }
 
 connection.onInitialize((params) => {
+    hasConfigurationCapability = !!(params.capabilities.workspace && params.capabilities.workspace.configuration);
     if (params.workspaceFolders && params.workspaceFolders.length > 0) {
         workspaceRoot = fileURLToPath(params.workspaceFolders[0].uri);
     } else if (params.rootUri) {
@@ -441,10 +403,20 @@ connection.onInitialize((params) => {
 });
 
 connection.onInitialized(() => {
-    void scanWorkspace();
+    if (hasConfigurationCapability) {
+        void connection.client.register(DidChangeConfigurationNotification.type, undefined);
+    }
+    void loadConfig().then(() => {
+        void scanWorkspace();
+    });
 });
 
 connection.onDidChangeWatchedFiles(() => {
+    void scanWorkspace();
+});
+
+connection.onDidChangeConfiguration(async () => {
+    await loadConfig();
     void scanWorkspace();
 });
 
@@ -470,6 +442,15 @@ connection.onCompletion((params) => {
         start: { line: params.position.line, character: 0 },
         end: params.position
     });
+
+    const memberMatch = lineText.match(/([A-Za-z_][A-Za-z0-9_]*)\.$/);
+    if (memberMatch) {
+        const entry = getModuleEntryForDoc(doc);
+        const completions = getMemberCompletions(memberMatch[1], entry);
+        if (completions.length > 0) {
+            return completions;
+        }
+    }
 
     const decoratorMatch = lineText.match(/^\s*@([A-Za-z0-9_]*)$/);
     if (decoratorMatch) {

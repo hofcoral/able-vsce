@@ -22,6 +22,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: 'file', language: 'able' }],
         synchronize: {
+            configurationSection: 'able',
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.abl')
         }
     };

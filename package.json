@@ -29,7 +29,25 @@
                 "scopeName": "source.able",
                 "path": "./syntaxes/able.tmLanguage.json"
             }
-        ]
+        ],
+        "configuration": {
+            "title": "Able",
+            "properties": {
+                "able.stdlibPaths": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Additional paths to scan for Able modules (e.g. /path/to/able/lib).",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "able.useEnvAblePath": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Include ABLEPATH in module search paths."
+                }
+            }
+        }
     },
     "main": "./out/extension.js",
     "activationEvents": [
@@ -38,6 +56,7 @@
     "icon": "resources/able-icon.png",
     "scripts": {
         "compile": "tsc -p ./",
+        "test": "npm run compile && node --test out/tests/**/*.test.js",
         "watch": "tsc -watch -p ./",
         "vscode:prepublish": "npm run compile"
     },
