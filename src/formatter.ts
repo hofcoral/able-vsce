@@ -1,14 +1,14 @@
-const vscode = require('vscode');
+import * as vscode from 'vscode';
 
 const INDENT = '    ';
 const INDENT_WIDTH = INDENT.length;
 const BLOCK_KEYWORDS = /^(?:if|elif|else|for|while|class|async\s+fun|fun)\b/;
 
-function isBlank(line) {
+function isBlank(line: string): boolean {
     return line.trim() === '';
 }
 
-function getIndentLevel(line) {
+function getIndentLevel(line: string): number {
     let width = 0;
     for (const ch of line) {
         if (ch === ' ') {
@@ -24,12 +24,12 @@ function getIndentLevel(line) {
     return Math.floor((width + INDENT_WIDTH / 2) / INDENT_WIDTH);
 }
 
-function shouldDecrease(line) {
+function shouldDecrease(line: string): boolean {
     const trimmed = line.trim();
     return /^(elif\b.*:|else:)/.test(trimmed);
 }
 
-function shouldIncrease(line) {
+function shouldIncrease(line: string): boolean {
     const trimmed = line.trim();
 
     if (trimmed.endsWith('{')) {
@@ -47,8 +47,8 @@ function shouldIncrease(line) {
     return false;
 }
 
-function formatAbleDocument(document) {
-    const edits = [];
+export function formatAbleDocument(document: vscode.TextDocument): vscode.TextEdit[] {
+    const edits: vscode.TextEdit[] = [];
     let indent = 0;
     let lastBlank = false;
 
@@ -91,7 +91,7 @@ function formatAbleDocument(document) {
     return edits;
 }
 
-function activate(context) {
+export function registerFormatter(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.languages.registerDocumentFormattingEditProvider('able', {
             provideDocumentFormattingEdits(document) {
@@ -100,5 +100,3 @@ function activate(context) {
         })
     );
 }
-
-exports.activate = activate;

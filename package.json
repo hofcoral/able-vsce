@@ -1,7 +1,7 @@
 {
     "name": "able",
     "displayName": "Able Language Support",
-    "description": "Syntax highlighting and basic formatting for the Able language.",
+    "description": "Syntax highlighting, formatting, and language features for the Able language.",
     "version": "0.0.1",
     "publisher": "hofcoral",
     "engines": {
@@ -31,13 +31,26 @@
             }
         ]
     },
-    "main": "./formatter.js",
+    "main": "./out/extension.js",
     "activationEvents": [
         "onLanguage:able"
     ],
     "icon": "resources/able-icon.png",
-    "scripts": {},
-    "devDependencies": {},
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "vscode:prepublish": "npm run compile"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1",
+        "vscode-languageserver": "^9.0.1",
+        "vscode-languageserver-textdocument": "^1.0.11"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.19",
+        "@types/vscode": "^1.50.0",
+        "typescript": "^5.4.0"
+    },
     "repository": {
         "type": "git",
         "url": "https://github.com/yourusername/able-vsce.git"

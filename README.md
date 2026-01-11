@@ -5,7 +5,8 @@ VS Code extension for Able language support.
 ## Features
 
 - Syntax highlighting for Able language files
-- Basic language support
+- Formatting with indentation awareness
+- Autocomplete for imports, functions, classes, and built-in types
 
 ## Installation
 
