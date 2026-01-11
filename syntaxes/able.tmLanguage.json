@@ -3,36 +3,315 @@
     "name": "Able",
     "patterns": [
         {
-            "match": "\\b(set|to|pr|GET|POST)\\b",
-            "name": "keyword.control.able"
+            "include": "#comments"
         },
         {
-            "match": "\".*?\"",
-            "name": "string.quoted.double.able"
+            "include": "#decorators"
         },
         {
-            "match": "\\b\\d+\\b",
-            "name": "constant.numeric.able"
+            "include": "#fstrings"
         },
         {
-            "name": "comment.line.number-sign.able",
-            "match": "#.*$",
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#class"
+        },
+        {
+            "include": "#function"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#constants"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.block.able",
+                    "begin": "##",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.begin.able"
+                        }
+                    },
+                    "end": "##",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.end.able"
+                        }
+                    }
+                },
+                {
+                    "name": "comment.line.number-sign.able",
+                    "match": "#.*$",
+                    "captures": {
+                        "0": {
+                            "name": "comment.line.able"
+                        }
+                    }
+                }
+            ]
+        },
+        "decorators": {
+            "name": "meta.annotation.able",
+            "match": "@([A-Za-z_][A-Za-z0-9_]*)",
             "captures": {
                 "0": {
-                    "name": "comment.line.able"
+                    "name": "support.function.decorator.able"
+                },
+                "1": {
+                    "name": "entity.name.function.decorator.able"
                 }
             }
         },
-        {
-            "name": "comment.block.able",
-            "begin": "##",
-            "end": "##",
+        "fstrings": {
+            "name": "string.quoted.double.able",
+            "begin": "\\bf\"",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.able"
+                }
+            },
+            "end": "\"",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.able"
+                }
+            },
             "patterns": [
                 {
-                    "match": ".",
-                    "name": "comment.block.able"
+                    "include": "#fstring-interpolation"
+                },
+                {
+                    "name": "constant.character.escape.able",
+                    "match": "\\\\."
+                }
+            ]
+        },
+        "fstring-interpolation": {
+            "begin": "\\{(?!\\{)",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.section.interpolation.begin.able"
+                }
+            },
+            "end": "\\}(?!\\})",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.section.interpolation.end.able"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#strings"
+                },
+                {
+                    "include": "#numbers"
+                },
+                {
+                    "include": "#keywords"
+                },
+                {
+                    "include": "#types"
+                },
+                {
+                    "include": "#constants"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double.able",
+            "begin": "\"",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.able"
+                }
+            },
+            "end": "\"",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.able"
+                }
+            },
+            "patterns": [
+                {
+                    "name": "constant.character.escape.able",
+                    "match": "\\\\."
+                }
+            ]
+        },
+        "numbers": {
+            "name": "constant.numeric.able",
+            "match": "\\b-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+        },
+        "class": {
+            "name": "meta.class.able",
+            "begin": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.class.able"
+                },
+                "2": {
+                    "name": "entity.name.type.class.able"
+                }
+            },
+            "end": ":",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.separator.colon.able"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#inheritance"
+                }
+            ]
+        },
+        "inheritance": {
+            "begin": "\\(",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.inheritance.begin.able"
+                }
+            },
+            "end": "\\)",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.inheritance.end.able"
+                }
+            },
+            "patterns": [
+                {
+                    "name": "entity.other.inherited-class.able",
+                    "match": "[A-Za-z_][A-Za-z0-9_]*"
+                },
+                {
+                    "name": "punctuation.separator.delimiter.able",
+                    "match": ","
+                }
+            ]
+        },
+        "function": {
+            "name": "meta.function.able",
+            "begin": "\\b(async\\s+)?(fun)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.modifier.async.able"
+                },
+                "2": {
+                    "name": "storage.type.function.able"
+                },
+                "3": {
+                    "name": "entity.name.function.able"
+                }
+            },
+            "end": ":",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.separator.colon.able"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#parameters"
+                }
+            ]
+        },
+        "parameters": {
+            "begin": "\\(",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.parameters.begin.able"
+                }
+            },
+            "end": "\\)",
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.parameters.end.able"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#strings"
+                },
+                {
+                    "include": "#numbers"
+                },
+                {
+                    "name": "variable.parameter.able",
+                    "match": "\\b(this|[A-Za-z_][A-Za-z0-9_]*)\\b"
+                },
+                {
+                    "name": "punctuation.separator.parameters.able",
+                    "match": ","
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.flow.able",
+                    "match": "\\b(if|elif|else|for|while|break|continue|return|await)\\b"
+                },
+                {
+                    "name": "storage.modifier.async.able",
+                    "match": "\\basync\\b"
+                },
+                {
+                    "name": "storage.type.function.able",
+                    "match": "\\bfun\\b"
+                },
+                {
+                    "name": "storage.type.class.able",
+                    "match": "\\bclass\\b"
+                },
+                {
+                    "name": "keyword.operator.logical.able",
+                    "match": "\\b(and|or|not|is)\\b"
+                },
+                {
+                    "name": "keyword.other.import.able",
+                    "match": "\\b(from|import|as|of)\\b"
+                },
+                {
+                    "name": "keyword.other.http.able",
+                    "match": "\\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\\b"
+                },
+                {
+                    "name": "variable.language.this.able",
+                    "match": "\\bthis\\b"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "support.type.able",
+                    "match": "\\b(Number|String|Boolean|List|Object|Function|BoundMethod|Type|Instance|Null|Undefined|Promise)\\b"
+                }
+            ]
+        },
+        "constants": {
+            "patterns": [
+                {
+                    "name": "constant.language.boolean.able",
+                    "match": "\\b(true|false)\\b"
+                },
+                {
+                    "name": "constant.language.null.able",
+                    "match": "\\bnull\\b"
                 }
             ]
         }
-    ]
+    }
 }

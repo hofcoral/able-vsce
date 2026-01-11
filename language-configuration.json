@@ -19,5 +19,45 @@
       "(",
       ")"
     ]
-  ]
+  ],
+  "autoClosingPairs": [
+    {
+      "open": "{",
+      "close": "}"
+    },
+    {
+      "open": "[",
+      "close": "]"
+    },
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "\"",
+      "close": "\""
+    }
+  ],
+  "surroundingPairs": [
+    {
+      "open": "{",
+      "close": "}"
+    },
+    {
+      "open": "[",
+      "close": "]"
+    },
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "\"",
+      "close": "\""
+    }
+  ],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(?:if\\b.*:|elif\\b.*:|else:|for\\b.*:|while\\b.*:|class\\b.*:|(?:async\\s+)?fun\\b.*:)",
+    "decreaseIndentPattern": "^\\s*(?:elif\\b.*:|else:)"
+  }
 }

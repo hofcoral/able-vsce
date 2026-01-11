@@ -15,7 +15,7 @@ VS Code extension for Able language support.
    ```
 2. Install the extension in VS Code:
    ```sh
-   code --install-extension able-lang-support-*.vsix
+   code --install-extension able-*.vsix
    ```
 
 ## Development

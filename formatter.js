@@ -1,46 +1,88 @@
 const vscode = require('vscode');
 
+const INDENT = '    ';
+const INDENT_WIDTH = INDENT.length;
+const BLOCK_KEYWORDS = /^(?:if|elif|else|for|while|class|async\s+fun|fun)\b/;
+
+function isBlank(line) {
+    return line.trim() === '';
+}
+
+function getIndentLevel(line) {
+    let width = 0;
+    for (const ch of line) {
+        if (ch === ' ') {
+            width += 1;
+            continue;
+        }
+        if (ch === '\t') {
+            width += INDENT_WIDTH;
+            continue;
+        }
+        break;
+    }
+    return Math.floor((width + INDENT_WIDTH / 2) / INDENT_WIDTH);
+}
+
+function shouldDecrease(line) {
+    const trimmed = line.trim();
+    return /^(elif\b.*:|else:)/.test(trimmed);
+}
+
+function shouldIncrease(line) {
+    const trimmed = line.trim();
+
+    if (trimmed.endsWith('{')) {
+        return true;
+    }
+
+    if (trimmed.endsWith('[')) {
+        return true;
+    }
+
+    if (/:\s*$/.test(trimmed)) {
+        return BLOCK_KEYWORDS.test(trimmed);
+    }
+
+    return false;
+}
+
 function formatAbleDocument(document) {
     const edits = [];
     let indent = 0;
-    const indentStr = '    ';
-    let lastLineWasBlank = false;
+    let lastBlank = false;
 
     for (let i = 0; i < document.lineCount; i++) {
-        let line = document.lineAt(i);
-        let text = line.text.trim();
+        const line = document.lineAt(i);
+        const text = line.text;
 
-        // Skip blank lines but preserve one blank line
-        if (text === '') {
-            if (!lastLineWasBlank) {
+        if (isBlank(text)) {
+            if (!lastBlank) {
                 edits.push(vscode.TextEdit.replace(line.range, ''));
-                lastLineWasBlank = true;
+                lastBlank = true;
             }
             continue;
         }
-        lastLineWasBlank = false;
+        lastBlank = false;
 
-        // Handle comments (lines starting with #)
-        if (text.startsWith('#')) {
-            edits.push(vscode.TextEdit.replace(line.range, indentStr.repeat(indent) + text));
-            continue;
-        }
+        const originalIndent = getIndentLevel(text);
 
-        // Adjust indent for closing braces
-        if (text.startsWith('}')) {
+        if (shouldDecrease(text)) {
             indent = Math.max(0, indent - 1);
         }
 
-        // Format the line with current indent
-        edits.push(vscode.TextEdit.replace(line.range, indentStr.repeat(indent) + text));
+        if (originalIndent < indent) {
+            indent = originalIndent;
+        }
 
-        // Adjust indent for opening braces
-        if (text.endsWith('{')) {
+        const formatted = INDENT.repeat(indent) + text.trim();
+        edits.push(vscode.TextEdit.replace(line.range, formatted));
+
+        if (shouldIncrease(text)) {
             indent++;
         }
     }
 
-    // Ensure file ends with a newline
     const lastLine = document.lineAt(document.lineCount - 1);
     if (lastLine.text !== '') {
         edits.push(vscode.TextEdit.insert(lastLine.range.end, '\n'));
