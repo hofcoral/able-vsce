@@ -2,7 +2,7 @@
     "name": "able",
     "displayName": "Able Language Support",
     "description": "Syntax highlighting, formatting, and language features for the Able language.",
-    "version": "0.0.1",
+    "version": "0.1.2",
     "publisher": "hofcoral",
     "engines": {
         "vscode": "^1.50.0"
